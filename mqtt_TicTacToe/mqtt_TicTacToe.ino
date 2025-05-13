@@ -46,6 +46,15 @@ void callback(char* topic, byte* message, unsigned int length){
     }
   }
 
+   if (String(topic == "board/reset"))
+  {
+    if (move == 7)
+    {
+      resetBoard();
+      updateLCD();
+    }
+  }
+
   if (String(topic) == "player/x")
   {
     gameBoard[move] = 1;

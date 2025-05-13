@@ -28,7 +28,7 @@ void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_messag
 			if ((i + 1) % 3 == 0) printf("\n");
 		}
 		board_updated = 1;
-	}
+	} 
 }
 
 void publish_move(const char *player_topic, int cell)
@@ -79,7 +79,9 @@ int main()
 		if (menu_choice == 1)
 		{
 			int cell = 0;
-			while (cell != -1) {
+			char player = 'x';
+
+			while (1) {
 				while(!board_updated){
 					usleep(10000);
 				}
@@ -89,22 +91,33 @@ int main()
 
 				printf("Enter cell number (1-9) or enter 0 to quit: ");
 				scanf("%d", &cell);
+				if (cell == 0) break;
 				cell--;
 
-				while (cell != -1  && (cell < 0 || cell > 8)) {
-					printf("Invalid cell. Must be between 1 and 9, enter a new cell: ");
+				while (cell < 0 || cell > 8) {
+					printf("Invalid cell. Must be between 1 and 9: ");
 					scanf("%d", &cell);
+					if (cell == 0) break;
 					cell--;
 				}
+				if (cell == -1) break;
 
-				while(cell != -1  && current_board[cell] != '-')
+				while(current_board[cell] != '-')
 				{
 					printf("Cell already taken, enter a new cell: ");
 					scanf("%d", &cell);
+					if (cell == 0) break;
 					cell--;
 				}
+				if (cell == -1) break;
+
 				publish_move("player/x", cell);
+				printf("\nBash Bot (O) is thinking...\n");
 				mosquitto_publish(mosq, NULL, "bot/start", strlen(current_board), current_board, 0, false);
+				while (!board_updated) {
+					usleep(10000);
+				}
+				board_updated = 0;
 			}
 		} 
 		else if (menu_choice == 2)
@@ -117,7 +130,7 @@ int main()
 				scanf(" %c", &player_choice);
 			}
 			int cell = 0;
-			while (cell != -1) {
+			while (1) {
 				while(!board_updated){
 					usleep(10000);
 				}
@@ -127,20 +140,25 @@ int main()
 
 				printf("Enter cell number (1-9) or enter 0 to quit: ");
 				scanf("%d", &cell);
+				if (cell == 0) break;
 				cell--;
 
-				while ((cell < 0 || cell > 8) && cell != -1) {
-					printf("Invalid cell. Must be between 1 and 9, enter a new cell: ");
+				while (cell < 0 || cell > 8) {
+					printf("Invalid cell. Must be between 1 and 9: ");
 					scanf("%d", &cell);
+					if (cell == 0) break;
 					cell--;
 				}
+				if (cell == -1) break;
 
-				while(current_board[cell] != '-' && cell != -1)
-				{
-					printf("Cell already taken, enter a new cell: ");
+				while (cell != -1 && current_board[cell] != '-') {
+					printf("Cell already taken. Enter a new cell (1-9): ");
 					scanf("%d", &cell);
+					if (cell == 0) break;
 					cell--;
 				}
+				if (cell == -1) break;
+
 
 				if (player_choice == 'x') {
 					publish_move("player/x", cell);
@@ -151,7 +169,63 @@ int main()
 				}
 			}
 		}
-		mosquitto_publish(mosq, NULL, "game/reset", 10, "7", 0, false);
+		else if(menu_choice == 3)
+		{
+			mosquitto_publish(mosq, NULL, "board/reset", 10, "7", 0, false); // Reset game on ESP32
+			usleep(500000); // Wait for reset to propagate
+
+			char current_player = 'x';
+			int moves_made = 0;
+
+			while (1) {
+				while (!board_updated) {
+					usleep(10000); // wait for board update
+				}
+				board_updated = 0;
+
+				// Detect game reset (all dashes)
+				int empty_cells = 0;
+				for (int i = 0; i < 9; i++) {
+					if (current_board[i] == '-') empty_cells++;
+				}
+				if (empty_cells == 9 && moves_made > 0) {
+					printf("\nGame Over (Board Reset Detected)\n");
+					break;
+				}
+
+				if (current_player == 'x') {
+					int cell = rand() % 9;
+					while (current_board[cell] != '-') {
+						cell = rand() % 9;
+					}
+					printf("\nC Bot (X) playing cell %d\n", cell + 1);
+					publish_move("player/x", cell);
+					moves_made++;
+				} else {
+					printf("\nBash Bot (O) is thinking...\n");
+					mosquitto_publish(mosq, NULL, "bot/start", strlen(current_board), current_board, 0, false);
+				}
+
+				current_player = (current_player == 'x') ? 'o' : 'x';
+			}
+		}
+		mosquitto_publish(mosq, NULL, "board/reset", 10, "7", 0, false);
+
+		int board_cleared = 0;
+		while (!board_cleared) {
+			while (!board_updated) {
+				usleep(10000);
+			}
+			board_updated = 0;
+
+			board_cleared = 1;
+			for (int i = 0; i < 9; i++) {
+				if (current_board[i] != '-') {
+					board_cleared = 0;
+					break;
+				}
+			}
+		}
 	}
 
 	mosquitto_loop_stop(mosq, true);
