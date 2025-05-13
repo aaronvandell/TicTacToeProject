@@ -33,6 +33,16 @@ void callback(char* topic, byte* message, unsigned int length){
   }
   int move = msg.toInt();
 
+  if (String(topic == "game/reset"))
+  {
+    resetBoard();
+    xWins = 0;
+    oWins = 0;
+    draws = 0;
+    gamesPlayed = 0;
+    updateLCD();
+  }
+
   if (String(topic) == "player/x")
   {
     gameBoard[move] = 1;

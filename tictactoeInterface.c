@@ -7,6 +7,7 @@
 #define IP "35.233.235.105"
 
 struct mosquitto *mosq = NULL;
+char current_board[10] = "---------";
 
 volatile int board_updated = 1;
 
@@ -17,12 +18,13 @@ void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_messag
 			return;
 		}
 		
-		const char *board = (char *)msg->payload;
+		memcpy(current_board, msg->payload, 9);
+		current_board[9] = '\0';
 
 		printf("\nCurrent Board:\n");
 
 		for (int i = 0; i < 9; i++) {
-			printf(" %c ", board[i]);
+			printf(" %c ", current_board[i]);
 			if ((i + 1) % 3 == 0) printf("\n");
 		}
 		board_updated = 1;
@@ -65,6 +67,7 @@ int main()
 
 	mosquitto_loop_start(mosq);
 
+	mosquitto_publish(mosq, NULL, "game/reset", 2, "1", 0, false);
 
 	char player_choice;
 	printf("Who will go first, x or o: ");
@@ -86,9 +89,17 @@ int main()
 		scanf("%d", &cell);
 		cell--;
 
-		if ((cell < 0 || cell > 8) && cell != -1) {
-			printf("Invalid cell. Must be between 1 and 9.\n");
-			continue;
+		while ((cell < 0 || cell > 8) && cell != -1) {
+			printf("Invalid cell. Must be between 1 and 9, enter a new cell: ");
+			scanf("%d", &cell);
+			cell--;
+		}
+
+		while(current_board[cell] != '-' && cell != -1)
+		{
+			printf("Cell already taken, enter a new cell: ");
+			scanf("%d", &cell);
+			cell--;
 		}
 
 		if (player_choice == 'x') {
