@@ -35,12 +35,15 @@ void callback(char* topic, byte* message, unsigned int length){
 
   if (String(topic == "game/reset"))
   {
-    resetBoard();
-    xWins = 0;
-    oWins = 0;
-    draws = 0;
-    gamesPlayed = 0;
-    updateLCD();
+    if (move == 7)
+    {
+      resetBoard();
+      xWins = 0;
+      oWins = 0;
+      draws = 0;
+      gamesPlayed = 0;
+      updateLCD();
+    }
   }
 
   if (String(topic) == "player/x")

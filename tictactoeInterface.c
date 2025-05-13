@@ -67,48 +67,91 @@ int main()
 
 	mosquitto_loop_start(mosq);
 
-	mosquitto_publish(mosq, NULL, "game/reset", 2, "1", 0, false);
+	mosquitto_publish(mosq, NULL, "game/reset", 10, "7", 0, false);
 
-	char player_choice;
-	printf("Who will go first, x or o: ");
-	scanf(" %c", &player_choice);
-	while (player_choice != 'x' && player_choice != 'o'){
-		printf("Invalid player. Who will go first, x or o: ");
-		scanf(" %c", &player_choice);
-	}
-	int cell = 0;
-	while (cell != -1) {
-		while(!board_updated){
-			usleep(10000);
-		}
-		board_updated = 0;
+	int menu_choice = '5';
+	while (menu_choice != 0)
+	{
+		printf("Main Menu:\n1: Player vs Bot\n2: Player vs Player\n3:Bot vs Bot\n");
+		printf("Enter number to select mode, or enter 0 to quit: ");
+		scanf("%d", &menu_choice);
 
-		printf("\nPlayer %c's turn\n", player_choice);
-
-		printf("Enter cell number (1-9) or enter 0 to quit: ");
-		scanf("%d", &cell);
-		cell--;
-
-		while ((cell < 0 || cell > 8) && cell != -1) {
-			printf("Invalid cell. Must be between 1 and 9, enter a new cell: ");
-			scanf("%d", &cell);
-			cell--;
-		}
-
-		while(current_board[cell] != '-' && cell != -1)
+		if (menu_choice == 1)
 		{
-			printf("Cell already taken, enter a new cell: ");
-			scanf("%d", &cell);
-			cell--;
-		}
+			int cell = 0;
+			while (cell != -1) {
+				while(!board_updated){
+					usleep(10000);
+				}
+				board_updated = 0;
 
-		if (player_choice == 'x') {
-			publish_move("player/x", cell);
-			player_choice = 'o';
-		} else {
-			publish_move("player/o", cell);
-			player_choice = 'x';
+				printf("\nYour turn\n");
+
+				printf("Enter cell number (1-9) or enter 0 to quit: ");
+				scanf("%d", &cell);
+				cell--;
+
+				while (cell != -1  && (cell < 0 || cell > 8)) {
+					printf("Invalid cell. Must be between 1 and 9, enter a new cell: ");
+					scanf("%d", &cell);
+					cell--;
+				}
+
+				while(cell != -1  && current_board[cell] != '-')
+				{
+					printf("Cell already taken, enter a new cell: ");
+					scanf("%d", &cell);
+					cell--;
+				}
+				publish_move("player/x", cell);
+				mosquitto_publish(mosq, NULL, "bot/start", strlen(current_board), current_board, 0, false);
+			}
+		} 
+		else if (menu_choice == 2)
+		{
+			char player_choice;
+			printf("Who will go first, x or o: ");
+			scanf(" %c", &player_choice);
+			while (player_choice != 'x' && player_choice != 'o'){
+				printf("Invalid player. Who will go first, x or o: ");
+				scanf(" %c", &player_choice);
+			}
+			int cell = 0;
+			while (cell != -1) {
+				while(!board_updated){
+					usleep(10000);
+				}
+				board_updated = 0;
+
+				printf("\nPlayer %c's turn\n", player_choice);
+
+				printf("Enter cell number (1-9) or enter 0 to quit: ");
+				scanf("%d", &cell);
+				cell--;
+
+				while ((cell < 0 || cell > 8) && cell != -1) {
+					printf("Invalid cell. Must be between 1 and 9, enter a new cell: ");
+					scanf("%d", &cell);
+					cell--;
+				}
+
+				while(current_board[cell] != '-' && cell != -1)
+				{
+					printf("Cell already taken, enter a new cell: ");
+					scanf("%d", &cell);
+					cell--;
+				}
+
+				if (player_choice == 'x') {
+					publish_move("player/x", cell);
+					player_choice = 'o';
+				} else {
+					publish_move("player/o", cell);
+					player_choice = 'x';
+				}
+			}
 		}
+		mosquitto_publish(mosq, NULL, "game/reset", 10, "7", 0, false);
 	}
 
 	mosquitto_loop_stop(mosq, true);
